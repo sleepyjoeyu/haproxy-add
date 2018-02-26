@@ -1,0 +1,24 @@
+---
+- name: install and start apache
+  hosts: app
+  gather_facts: True 
+  vars:    
+    words: Red Hat Ansible is very good tool!!    
+    pic: RHansible.png
+  remote_user: root
+
+  tasks:
+  - name: install httpd
+    yum: pkg=httpd state=latest
+  - name: write the apache html file     
+    template: src=./srv/index.html.j2 dest=/var/www/html/index.html
+    notify: record_change
+  - name: copy png files
+    copy: src=./img/{{pic}}  dest=/var/www/html/
+  - name: start httpd
+    service: name=httpd state=running
+
+  handlers:
+  - name: record_change
+    shell: echo "webpage change at $(date)" >> /var/www/html/record_change.log
+

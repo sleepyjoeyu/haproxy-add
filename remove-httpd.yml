@@ -1,0 +1,15 @@
+---
+- name: clean "install and start apache" demo environment
+  hosts: app 
+  gather_facts: False
+  tasks:
+#  - name: stop httpd service
+#    service: name=httpd state=stopped
+  - name: remove the apache package
+    package: name=httpd state=absent use=yum
+  - name: get files in /var/www/html
+    shell: ls /var/www/html/
+    register: path_files
+  - name: clean files 
+    file: path="/var/www/html/{{item}}" state=absent
+    with_items: "{{path_files.stdout_lines}}"

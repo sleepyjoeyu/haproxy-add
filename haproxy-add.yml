@@ -1,0 +1,39 @@
+---
+- name: Manage Load Balance - Haproxy
+  hosts: lb  
+  vars:    
+    newapp: 192.168.122.127
+    appname: app
+    appport: 80
+  remote_user: root
+
+  tasks:
+  - name:  check server already in '{{ appname }}' backend pool
+    shell: grep -Eiv '#|^\ *$' /etc/haproxy/haproxy.cfg|grep -i server|grep -iE '\b{{ appname }}[0-9]*\b' |grep -i '{{ newapp }}'
+    ignore_errors: True
+    register: result1
+  - debug:
+      var: result1
+  - name:  check app info  in  backend pool
+    shell: grep -Eiv '#|^\ *$' /etc/haproxy/haproxy.cfg|grep -i 'server' |grep -iE '\b{{ appname }}[0-9]*\b'|tail -n 1|awk '{print $2}'|tr -dc [0-9]
+    register: appno 
+    when: result1|failed
+  - shell: echo $[ {{ appno.stdout }}+1]
+    register: newappno
+    when: result1|failed
+  - shell: grep -Eiv '#|^\ *$' /etc/haproxy/haproxy.cfg|grep -i 'server' |grep -iE '\b{{ appname }}[0-9]*\b'|tail -n 1
+    register: lastapp
+    when: result1|failed
+  - debug: var=lastapp
+  - name: add new app record
+    shell: sed -ir 's/{{ lastapp.stdout }}/&\n    server  {{ appname }}{{ newappno.stdout }} {{ newapp }}:{{ appport }} check/1' /etc/haproxy/haproxy.cfg 
+    register: replaceresult
+    notify: restart haproxy service
+    when: result1|failed
+
+  handlers:
+  - name: restart haproxy service
+    service:
+      name: haproxy
+      state: restarted
+...
